@@ -1,0 +1,95 @@
+=========================================================
+  WhatsApp Expense Tracker — CHANGELOG
+=========================================================
+
+v2.2 — 2026-06-09
+---------------------
+CAMBIOS EN CATEGORÍAS:
+  - Eliminadas: arquitectura, ciberseguridad (demasiado específicas)
+  - Renombrada: salidas → social (salidas con otras personas)
+  - Nueva: recreacion (gustos personales, solo)
+  - Categorías actuales: comida, social, recreacion, transporte,
+    tecnologia, suscripciones, salud, hogar, otros
+
+  Criterio social vs recreacion:
+    social     = hay otra persona involucrada (merienda con alguien, cumple, salida)
+    recreacion = gusto personal solo (helado, cine, porro, etc.)
+    Si no queda claro, el bot pregunta antes de registrar.
+
+Archivos modificados:
+  src/ai/claude.js  — enum de categorias + regla social/recreacion en system prompt
+
+=========================================================
+
+v2.1 — 2026-06-08
+---------------------
+NUEVO MÓDULO: Eventos y recordatorios
+  - Hoja "Eventos" en Google Sheets (ID, Fecha, Hora, Tipo, Descripcion)
+  - Scheduler de eventos: avisa 3 días antes, 1 día antes y el mismo día a las 8 AM
+  - Resiliente a reinicios: si el bot estaba caído a las 8 AM y arranca después, igual avisa
+  - 4 tools nuevas: registrar_evento, ver_eventos, editar_evento, eliminar_evento
+  - Lenguaje natural: "tengo turno", "corrí el turno", "ya no voy", etc.
+
+BUG FIX — Scheduler de suscripciones:
+  - La comparación de fechas usaba timestamp en vez de número de día,
+    causando que nunca avisara en días 5 o 12 del mes
+  - Snooze con valor inválido en Sheet bloqueaba permanentemente la suscripción
+  - Estado persistente en /app/data/notif_state.json (sobrevive reinicios)
+
+BUG FIX — Sesión WhatsApp ("esperando este mensaje"):
+  - Causa raíz: sesión Signal corrupta entre el bot y los dispositivos del usuario
+  - Fix: revinculación del dispositivo (QR scan) para resetear las claves E2E
+  - Agregado makeCacheableSignalKeyStore para manejo correcto de claves Signal
+  - Actualizado Baileys de v6.7.x a v7.0.0-rc13 (incluye ghost session fixes y LID mapping)
+
+DOCKER:
+  - Volúmenes: app_data (padre) + wa-session (hijo) con orden correcto
+  - Estado persistente en volumen Docker (notif_state.json, eventos_notif_state.json)
+
+Archivos modificados:
+  src/scheduler/subscriptions.js  — reescritura completa con fix de fechas y estado persistente
+  src/scheduler/events.js         — nuevo archivo
+  src/sheets/client.js            — funciones CRUD para hoja Eventos
+  src/ai/claude.js                — 4 tools nuevas de eventos
+  src/whatsapp/client.js          — handlers de eventos + makeCacheableSignalKeyStore + Baileys v7
+  docker-compose.yml              — volúmenes corregidos
+  Dockerfile                      — label version 2.2
+  package.json / package-lock.json — Baileys 7.0.0-rc13
+
+=========================================================
+
+v2.0 — 2026-05-31
+---------------------
+REESCRITURA COMPLETA de la arquitectura de IA:
+  - Migración de prompts manuales a arquitectura tool_use con Claude API
+  - Prompt caching: bloque estático cacheado para reducir costos de tokens
+  - 22 tools definidas con input_schema estricto
+  - Historial de conversación (últimos 5 mensajes)
+  - Stack de filas interactuadas para contexto de edición/eliminación
+  - Pending actions con TTL 60s para confirmaciones
+
+NUEVOS MÓDULOS:
+  - Deudas: registrar, sumar, pagar, ver resumen, borrar saldadas/todas
+  - Suscripciones: registrar, cancelar, editar, eliminar, ver, snooze
+  - Scheduler de suscripciones: avisa 3, 1 y 0 días antes del vencimiento
+
+Archivos modificados:
+  src/ai/claude.js        — reescritura completa
+  src/whatsapp/client.js  — handlers para todas las tools
+  src/sheets/client.js    — funciones para deudas y suscripciones
+
+=========================================================
+
+v1.2.1 — 2025-04-06
+---------------------
+BUG FIXES:
+  - Scheduler duplicado en reconexión de Baileys
+  - Divisas mezcladas en resumen semanal (ARS + USD sumados juntos)
+
+MEJORAS:
+  - Resumen semanal detallado por categoría y divisa
+
+=========================================================
+
+v1.2 — version anterior
+  (ver historial de commits)

@@ -1,0 +1,34 @@
+version: '3.9'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: expense-tracker-app:3.0
+    container_name: expense-tracker-app
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - TZ=America/Argentina/Buenos_Aires
+    volumes:
+      - app_data:/app/data
+      - wa_session:/app/data/wa-session
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - tracker_net
+
+volumes:
+  app_data:
+    driver: local
+  wa_session:
+    driver: local
+
+networks:
+  tracker_net:
+    driver: bridge

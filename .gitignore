@@ -1,0 +1,27 @@
+# Secretos y configuración local
+.env
+
+# Sesión de WhatsApp (claves Signal — nunca commitear)
+data/wa-session/
+
+# Archivos personales guardados por el bot
+data/files/
+
+# Estado persistente de notificaciones
+data/*.json
+
+# Backups
+*.tar.gz
+
+# Node
+node_modules/
+
+# Logs
+*.log
+logs/
+
+# Claude Code
+.claude/
+
+# Windows metadata
+*:Zone.Identifier
