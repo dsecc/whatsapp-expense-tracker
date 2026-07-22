@@ -370,8 +370,7 @@ async function getAllRecordatorios() {
   });
   const rows = res.data.values || [];
   if (rows.length === 0) return [];
-  // Saltar la primera fila solo si es un header (primera celda = "ID")
-  const hasHeader = rows[0][0]?.toString().toUpperCase() === 'ID';
+  const hasHeader = rows[0][0]?.toString().trim().toUpperCase() === 'ID';
   return hasHeader ? rows.slice(1) : rows;
 }
 
@@ -405,6 +404,8 @@ async function writeRecordatorioRow(rowIndex, rec) {
   });
 }
 
+const REC_HEADERS = ['ID', 'Fecha', 'Hora', 'Descripcion', 'Estado', 'SnoozeHasta'];
+
 export async function ensureRecordatoriosHeaders() {
   const sheets = await getSheetsClient();
   try {
@@ -412,16 +413,18 @@ export async function ensureRecordatoriosHeaders() {
       spreadsheetId: config.sheets.sheetId,
       range: REC_SHEET + '!A1:F1',
     });
-    if (res.data.values?.[0]?.length > 0) return;
+    const existing = res.data.values?.[0] || [];
+    const correct = REC_HEADERS.every((h, i) => existing[i]?.toString().trim() === h);
+    if (correct) return;
     await sheets.spreadsheets.values.update({
       spreadsheetId: config.sheets.sheetId,
       range: REC_SHEET + '!A1:F1',
       valueInputOption: 'USER_ENTERED',
-      requestBody: { values: [['ID', 'Fecha', 'Hora', 'Descripcion', 'Estado', 'SnoozeHasta']] },
+      requestBody: { values: [REC_HEADERS] },
     });
-    logger.info('Headers de Recordatorios creados');
+    logger.info('Headers de Recordatorios escritos/corregidos');
   } catch (err) {
-    logger.warn({ err: err.message }, 'No se pudieron crear headers de Recordatorios');
+    logger.warn({ err: err.message }, 'No se pudieron escribir headers de Recordatorios');
   }
 }
 
@@ -444,7 +447,7 @@ export async function getRecordatoriosPendientes() {
   const rows = await getAllRecordatorios();
   return rows
     .map((r, i) => rowToRecordatorio(r, i))
-    .filter(r => r.estado === 'pendiente');
+    .filter(r => r.estado !== 'hecho');
 }
 
 export async function findRecordatorio(id, descripcionBusqueda) {
