@@ -11,6 +11,13 @@ Bot de WhatsApp personal para registro de gastos, deudas, suscripciones, eventos
 - **Google Sheets** — base de datos (hojas: Gastos, Ayuda, Deudas, Suscripciones, Eventos, Recordatorios)
 - **Docker** — imagen `expense-tracker-app:3.0`, volumen persistente `app_data`
 
+## Versión actual: 3.0.1
+
+**Fixes incluidos en 3.0.1:**
+- `ensureRecordatoriosHeaders` ahora verifica y sobreescribe headers incorrectos al arrancar (antes ignoraba cualquier header existente)
+- `getRecordatoriosPendientes` filtra por `estado !== 'hecho'` en vez de `=== 'pendiente'` — más resiliente a datos desalineados
+- `fechaHoyAR()` incluye la hora actual (HH:MM) en el contexto de Claude — necesario para calcular correctamente "recordame en X horas"
+
 ## Estructura
 
 ```
@@ -108,7 +115,7 @@ TZ=America/Argentina/Buenos_Aires
 ```bash
 # Primera vez o rebuild completo
 cd /opt/expense-tracker
-tar -xzf whatsapp-expense-tracker-v3.0.tar.gz
+tar -xzf whatsapp-expense-tracker-v3.0.1.tar.gz
 docker-compose build --no-cache
 docker-compose up -d
 docker logs expense-tracker-app -f   # escanear QR si es primera vez
