@@ -388,9 +388,10 @@ function fechaHoyAR() {
   const fmt = new Intl.DateTimeFormat('es-AR', {
     timeZone: 'America/Argentina/Buenos_Aires',
     year: 'numeric', month: '2-digit', day: '2-digit', weekday: 'long',
+    hour: '2-digit', minute: '2-digit', hour12: false,
   });
   const parts = Object.fromEntries(fmt.formatToParts(new Date()).map(p => [p.type, p.value]));
-  return parts.weekday + ' ' + parts.day + '/' + parts.month + '/' + parts.year;
+  return parts.weekday + ' ' + parts.day + '/' + parts.month + '/' + parts.year + ' ' + parts.hour + ':' + parts.minute;
 }
 
 // ── Bloque estatico cacheado (personalidad + reglas) ─────────────────────────
