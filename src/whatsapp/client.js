@@ -5,6 +5,7 @@ import {
   makeCacheableSignalKeyStore,
   downloadMediaMessage,
   extractMessageContent,
+  fetchLatestBaileysVersion,
 } from '@whiskeysockets/baileys';
 import { Boom } from '@hapi/boom';
 import qrcode from 'qrcode-terminal';
@@ -954,7 +955,11 @@ export async function startWhatsAppClient() {
   const baileysLogger = logger.child({ module: 'baileys' });
   baileysLogger.level = 'silent';
 
+  const { version, isLatest } = await fetchLatestBaileysVersion();
+  logger.info({ version, isLatest }, 'Version de WhatsApp Web en uso');
+
   sock = makeWASocket({
+    version,
     auth: {
       creds: state.creds,
       keys: makeCacheableSignalKeyStore(state.keys, baileysLogger),
