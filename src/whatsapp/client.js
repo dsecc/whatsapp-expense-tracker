@@ -5,7 +5,7 @@ import {
   makeCacheableSignalKeyStore,
   downloadMediaMessage,
   extractMessageContent,
-  fetchLatestBaileysVersion,
+  fetchLatestWaWebVersion,
 } from '@whiskeysockets/baileys';
 import { Boom } from '@hapi/boom';
 import qrcode from 'qrcode-terminal';
@@ -955,7 +955,8 @@ export async function startWhatsAppClient() {
   const baileysLogger = logger.child({ module: 'baileys' });
   baileysLogger.level = 'silent';
 
-  const { version, isLatest } = await fetchLatestBaileysVersion();
+  const { version, isLatest, error: versionError } = await fetchLatestWaWebVersion();
+  if (versionError) logger.warn({ err: versionError }, 'No se pudo obtener la version de WhatsApp Web, se usa el fallback del paquete');
   logger.info({ version, isLatest }, 'Version de WhatsApp Web en uso');
 
   sock = makeWASocket({
