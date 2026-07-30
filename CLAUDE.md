@@ -11,7 +11,10 @@ Bot de WhatsApp personal para registro de gastos, deudas, suscripciones, eventos
 - **Google Sheets** — base de datos (hojas: Gastos, Ayuda, Deudas, Suscripciones, Eventos, Recordatorios)
 - **Docker** — imagen `expense-tracker-app:3.0`, volumen persistente `app_data`
 
-## Versión actual: 3.0.2
+## Versión actual: 3.0.3
+
+**Fixes incluidos en 3.0.3:**
+- `startWhatsAppClient` ahora usa `fetchLatestWaWebVersion()` en vez de `fetchLatestBaileysVersion()` — esta scrapea `web.whatsapp.com/sw.js` para obtener la version real que WhatsApp esta sirviendo, en vez de leer el repo de Baileys en GitHub (que puede estar atrasado y además falla en silencio si no hay red, sin arreglar el loop de `statusCode 405`)
 
 **Fixes incluidos en 3.0.2:**
 - `startWhatsAppClient` ahora llama a `fetchLatestBaileysVersion()` y pasa `version` a `makeWASocket` — evita que la conexión quede en loop con `statusCode 405` cuando WhatsApp actualiza el protocolo web y el paquete de Baileys pinneado queda desactualizado
@@ -118,7 +121,7 @@ TZ=America/Argentina/Buenos_Aires
 ```bash
 # Primera vez o rebuild completo
 cd /opt/expense-tracker
-tar -xzf whatsapp-expense-tracker-v3.0.2.tar.gz
+tar -xzf whatsapp-expense-tracker-v3.0.3.tar.gz
 docker-compose build --no-cache
 docker-compose up -d
 docker logs expense-tracker-app -f   # escanear QR si es primera vez
