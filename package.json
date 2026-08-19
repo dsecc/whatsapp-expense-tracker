@@ -1,7 +1,7 @@
 {
   "name": "whatsapp-expense-tracker",
-  "version": "3.0.0",
-  "description": "WhatsApp bot personal para registrar gastos, deudas, suscripciones, eventos y recordatorios. Texto y audios.",
+  "version": "3.1.0",
+  "description": "WhatsApp bot personal para registrar gastos, deudas, suscripciones, eventos, recordatorios y cumpleaños. Texto y audios.",
   "main": "src/index.js",
   "type": "module",
   "scripts": {
