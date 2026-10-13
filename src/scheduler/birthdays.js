@@ -6,8 +6,12 @@ let schedulerInterval = null;
 let resetTimer        = null;
 
 // ── Estado persistente ────────────────────────────────────────────────────────
-// Formato de key: "id-dias-dd/mm/yyyy" (dias=30|7|0)
+// Formato de key: "id-dias-dd/mm/yyyy" (dias=30|7|1|0)
 const NOTIF_STATE_PATH = '/app/data/cumpleanos_notif_state.json';
+
+// Hora AR a partir de la cual salen los avisos previos (1 mes, 1 semana y 1 día antes).
+// El del mismo día sale a las 00:01 para saludar a la medianoche.
+const HORA_AVISO_PREVIO = 21;
 
 function loadState() {
   try {
@@ -113,9 +117,12 @@ function armarMensaje(c, dias, ocurrencia) {
     const dia = nombreDia(ocurrencia);
     return 'El *' + dia + '* que viene es el cumpleaños de *' + c.nombre + '* (' + fechaStr + ').' + notasSufijo;
   }
-  // dias === 0
   const edad = c.anio ? ocurrencia.getFullYear() - c.anio : null;
   const edadStr = edad != null ? ' — cumple *' + edad + '*.' : '.';
+  if (dias === 1) {
+    return 'Mañana es el cumpleaños de *' + c.nombre + '* (' + fechaStr + ')' + edadStr + ' A las 12 acordate de saludar.' + notasSufijo;
+  }
+  // dias === 0
   return 'Hoy cumple años *' + c.nombre + '*' + edadStr;
 }
 
@@ -139,7 +146,10 @@ async function checkCumpleanos(getSock, targetJid) {
 
     const ocurrencia = proximaOcurrencia(c.dia, c.mes, ar);
     const dias = diasEntre(ar.dateOnly, ocurrencia);
-    if (dias !== 30 && dias !== 7 && dias !== 0) continue;
+    if (dias !== 30 && dias !== 7 && dias !== 1 && dias !== 0) continue;
+
+    // Avisos previos: a la noche (no a la madrugada apenas cambia la fecha)
+    if (dias > 0 && ar.hour < HORA_AVISO_PREVIO) continue;
 
     // Aviso del mismo dia: recien a partir de las 00:01
     if (dias === 0 && ar.hour === 0 && ar.minute < 1) continue;

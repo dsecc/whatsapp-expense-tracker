@@ -615,7 +615,7 @@ async function executeTool(from, toolName, input, recentRows, isAudio = false) {
       const result   = await appendCumpleanos({ nombre: input.nombre, dia: input.dia, mes: input.mes, anio: input.anio || null, notas: input.notas || '' });
       const fechaStr = String(input.dia).padStart(2, '0') + '/' + String(input.mes).padStart(2, '0');
       const anioStr  = result.anio ? ' (' + result.anio + ')' : '';
-      return '*[CUMPLEAÑOS REGISTRADO — #' + result.id + ']*\n\n' + result.nombre + anioStr + '\n📅 ' + fechaStr + '\n\nTe aviso un mes antes, una semana antes y el mismo día.';
+      return '*[CUMPLEAÑOS REGISTRADO — #' + result.id + ']*\n\n' + result.nombre + anioStr + '\n📅 ' + fechaStr + '\n\nTe aviso un mes antes, una semana antes y el día anterior (a las 21), y el mismo día a las 00.';
     }
 
     case 'editar_cumpleanos': {

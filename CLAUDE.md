@@ -11,7 +11,11 @@ Bot de WhatsApp personal para registro de gastos, deudas, suscripciones, eventos
 - **Google Sheets** — base de datos (hojas: Gastos, Ayuda, Deudas, Suscripciones, Eventos, Recordatorios, Cumpleanos)
 - **Docker** — imagen `expense-tracker-app:3.0`, volumen persistente `app_data`
 
-## Versión actual: 3.1.1
+## Versión actual: 3.1.2
+
+**Fixes incluidos en 3.1.2:**
+- Cumpleaños: nuevo aviso el día anterior a las 21:00 ("mañana es el cumpleaños de X... a las 12 acordate de saludar"), para saludar a la medianoche
+- Cumpleaños: los avisos de 1 mes y 1 semana antes ahora salen a partir de las 21:00 (antes salían a la madrugada, igual que el bug de eventos de 3.1.1)
 
 **Fixes incluidos en 3.1.1:**
 - Avisos previos de eventos y suscripciones (3 días y 1 día antes) ahora salen a partir de las 21:00 AR (`HORA_AVISO_PREVIO`) — antes no tenían restricción horaria y salían en el primer chequeo después de medianoche (~00:xx), cuando el usuario ya no los ve hasta el día siguiente
@@ -114,7 +118,7 @@ TZ=America/Argentina/Buenos_Aires
 
 - Recurrencia anual: se registra una sola vez (día + mes), no hay que volver a cargarlo cada año
 - El año de nacimiento es opcional. Si no se sabe al registrar, no se pregunta — se agrega después de forma conversacional (ej. "Fede nació en el 98" → `editar_cumpleanos`) y a partir de ahí el bot calcula y avisa la edad
-- 3 avisos automáticos por cumpleaños: 1 mes antes, 1 semana antes (con la fecha relativa, ej. "el lunes que viene") y el mismo día a las 00:01
+- 4 avisos automáticos por cumpleaños: 1 mes antes, 1 semana antes (con la fecha relativa, ej. "el lunes que viene") y 1 día antes, todos a partir de las 21:00; y el mismo día a las 00:01 (chequeo cada 15 min, llega entre 00:01 y ~00:15)
 - 29 de febrero: en años no bisiestos el aviso se corre al 1 de marzo
 - Eliminar/editar requieren confirmación (igual que Suscripciones/Eventos); registrar es directo
 - Estado persistente: `/app/data/cumpleanos_notif_state.json`
@@ -140,7 +144,7 @@ TZ=America/Argentina/Buenos_Aires
 ```bash
 # Primera vez o rebuild completo
 cd /opt/expense-tracker
-tar -xzf whatsapp-expense-tracker-v3.1.1.tar.gz
+tar -xzf whatsapp-expense-tracker-v3.1.2.tar.gz
 docker-compose build --no-cache
 docker-compose up -d
 docker logs expense-tracker-app -f   # escanear QR si es primera vez
