@@ -4,6 +4,9 @@ import { getSuscripcionesActivas, clearSnooze } from '../sheets/client.js';
 
 const MAX_SNOOZE  = 2;
 const SNOOZE_HOURS = 3;
+// Hora AR a partir de la cual salen los avisos: previos (3 días / 1 día) a la noche, mismo día a la mañana
+const HORA_AVISO_PREVIO     = 21;
+const HORA_AVISO_MISMO_DIA  = 8;
 let schedulerInterval  = null;
 let resetTimer         = null;   // un solo timer de reset activo a la vez
 
@@ -185,6 +188,7 @@ async function checkSuscripciones(getSock, targetJid) {
 
     // Avisar a 3 dias, 1 dia y el mismo dia (0)
     if (dias !== 3 && dias !== 1 && dias !== 0) continue;
+    if (ar.hour < (dias === 0 ? HORA_AVISO_MISMO_DIA : HORA_AVISO_PREVIO)) continue;
 
     // No repetir si ya se aviso hoy para este tramo
     const key = sub.id + '-' + dias + '-' + ar.fecha;

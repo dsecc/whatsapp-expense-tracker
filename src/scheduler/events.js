@@ -7,8 +7,11 @@ let resetTimer        = null;
 
 // ── Estado persistente ────────────────────────────────────────────────────────
 // Formato de key: "id-dias-dd/mm/yyyy"
-// dias=3 → aviso 3 días antes | dias=1 → aviso 1 día antes | dias=0 → aviso mismo día (8AM+)
+// dias=3 → aviso 3 días antes (21h+) | dias=1 → aviso 1 día antes (21h+) | dias=0 → aviso mismo día (8AM+)
 const NOTIF_STATE_PATH = '/app/data/eventos_notif_state.json';
+
+// Hora AR a partir de la cual salen los avisos previos (3 días y 1 día antes)
+const HORA_AVISO_PREVIO = 21;
 
 function loadState() {
   try {
@@ -153,8 +156,9 @@ async function checkEventos(getSock, targetJid) {
 
     const dias = diasEntre(ar.dateOnly, fechaEvento);
 
-    // Aviso 3 días antes y 1 día antes → sin restricción horaria
+    // Aviso 3 días antes y 1 día antes → a la noche (no a la madrugada apenas cambia la fecha)
     if (dias === 3 || dias === 1) {
+      if (ar.hour < HORA_AVISO_PREVIO) continue;
       const key = evento.id + '-' + dias + '-' + ar.fecha;
       if (yaAvisado(key)) continue;
 
