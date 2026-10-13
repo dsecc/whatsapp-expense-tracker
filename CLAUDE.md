@@ -11,7 +11,11 @@ Bot de WhatsApp personal para registro de gastos, deudas, suscripciones, eventos
 - **Google Sheets** — base de datos (hojas: Gastos, Ayuda, Deudas, Suscripciones, Eventos, Recordatorios)
 - **Docker** — imagen `expense-tracker-app:3.0`, volumen persistente `app_data`
 
-## Versión actual: 3.0.3
+## Versión actual: 3.0.4
+
+**Fixes incluidos en 3.0.4:**
+- Avisos previos de eventos y suscripciones (3 días y 1 día antes) ahora salen a partir de las 21:00 AR (`HORA_AVISO_PREVIO`) — antes no tenían restricción horaria y salían en el primer chequeo después de medianoche (~00:xx), cuando el usuario ya no los ve hasta el día siguiente
+- Aviso del mismo día de suscripciones ahora sale a partir de las 8:00 AR (antes también salía a la madrugada). El de eventos ya respetaba `avisoHora` (default 8:00)
 
 **Fixes incluidos en 3.0.3:**
 - `startWhatsAppClient` ahora usa `fetchLatestWaWebVersion()` en vez de `fetchLatestBaileysVersion()` — esta scrapea `web.whatsapp.com/sw.js` para obtener la version real que WhatsApp esta sirviendo, en vez de leer el repo de Baileys en GitHub (que puede estar atrasado y además falla en silencio si no hay red, sin arreglar el loop de `statusCode 405`)
@@ -96,6 +100,7 @@ TZ=America/Argentina/Buenos_Aires
 ## Recordatorios
 
 - Avisan el día configurado a la hora especificada (default 8:00)
+- Eventos/suscripciones: aviso 3 días y 1 día antes a las 21:00, y el mismo día a las 8:00 (eventos: hora de `avisoHora`)
 - Snooze libre: "recordamelo en X horas"
 - Se auto-completan al avisar (desaparecen de la lista)
 - Estado persistente: `/app/data/recordatorios_notif_state.json`
@@ -121,7 +126,7 @@ TZ=America/Argentina/Buenos_Aires
 ```bash
 # Primera vez o rebuild completo
 cd /opt/expense-tracker
-tar -xzf whatsapp-expense-tracker-v3.0.3.tar.gz
+tar -xzf whatsapp-expense-tracker-v3.0.4.tar.gz
 docker-compose build --no-cache
 docker-compose up -d
 docker logs expense-tracker-app -f   # escanear QR si es primera vez
