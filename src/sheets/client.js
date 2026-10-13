@@ -513,6 +513,157 @@ export async function eliminarRecordatorio(id, descripcionBusqueda) {
   return rec;
 }
 
+// ── Hoja Cumpleanos ──────────────────────────────────────────────────────────
+// Columnas: ID | Nombre | Dia | Mes | Anio | Notas
+// Sin columna de estado: recurre cada año mientras exista la fila. El año de
+// nacimiento es opcional (permite calcular la edad); si no se sabe, se guarda
+// vacio y se completa despues via editar_cumpleanos.
+
+const CUMPLE_SHEET   = 'Cumpleanos';
+const CUMPLE_RANGE   = 'A:F';
+const CUMPLE_HEADERS = ['ID', 'Nombre', 'Dia', 'Mes', 'Anio', 'Notas'];
+
+async function getAllCumpleanosRaw() {
+  const sheets = await getSheetsClient();
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId: config.sheets.sheetId,
+    range: CUMPLE_SHEET + '!' + CUMPLE_RANGE,
+  });
+  const rows = res.data.values || [];
+  if (rows.length === 0) return [];
+  const hasHeader = rows[0][0]?.toString().trim().toUpperCase() === 'ID';
+  return hasHeader ? rows.slice(1) : rows;
+}
+
+function rowToCumpleanos(row, index) {
+  return {
+    id:        row[0] ?? '',
+    nombre:    row[1] ?? '',
+    dia:       parseInt(row[2]) || 0,
+    mes:       parseInt(row[3]) || 0,
+    anio:      row[4] ? parseInt(row[4]) : null,
+    notas:     row[5] ?? '',
+    _rowIndex: index + 2,
+  };
+}
+
+async function getNextCumpleanosId() {
+  const rows = await getAllCumpleanosRaw();
+  if (rows.length === 0) return 1;
+  const ids = rows.map(r => parseInt(r[0])).filter(n => !isNaN(n));
+  return ids.length > 0 ? Math.max(...ids) + 1 : 1;
+}
+
+async function writeCumpleanosRow(rowIndex, c) {
+  const sheets = await getSheetsClient();
+  const row = [c.id, c.nombre, c.dia, c.mes, c.anio ?? '', c.notas || ''];
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: config.sheets.sheetId,
+    range: CUMPLE_SHEET + '!A' + rowIndex + ':F' + rowIndex,
+    valueInputOption: 'USER_ENTERED',
+    requestBody: { values: [row] },
+  });
+}
+
+// Crea la hoja Cumpleanos (si no existe) y sus headers
+export async function ensureCumpleanosHeaders() {
+  const sheets = await getSheetsClient();
+  try {
+    const meta  = await sheets.spreadsheets.get({ spreadsheetId: config.sheets.sheetId });
+    const sheet = meta.data.sheets.find(s => s.properties.title === CUMPLE_SHEET);
+
+    if (!sheet) {
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId: config.sheets.sheetId,
+        requestBody: { requests: [{ addSheet: { properties: { title: CUMPLE_SHEET } } }] },
+      });
+      logger.info('Hoja Cumpleanos creada');
+    }
+
+    const res = await sheets.spreadsheets.values.get({
+      spreadsheetId: config.sheets.sheetId,
+      range: CUMPLE_SHEET + '!A1:F1',
+    });
+    const existing = res.data.values?.[0] || [];
+    const correct  = CUMPLE_HEADERS.every((h, i) => existing[i]?.toString().trim() === h);
+    if (correct) return;
+
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: config.sheets.sheetId,
+      range: CUMPLE_SHEET + '!A1:F1',
+      valueInputOption: 'USER_ENTERED',
+      requestBody: { values: [CUMPLE_HEADERS] },
+    });
+    logger.info('Headers de Cumpleanos escritos/corregidos');
+  } catch (err) {
+    logger.warn({ err: err.message }, 'No se pudieron crear/migrar headers de Cumpleanos');
+  }
+}
+
+export async function appendCumpleanos(data) {
+  const sheets = await getSheetsClient();
+  const id  = await getNextCumpleanosId();
+  const row = [id, data.nombre, data.dia, data.mes, data.anio || '', data.notas || ''];
+  await sheets.spreadsheets.values.append({
+    spreadsheetId: config.sheets.sheetId,
+    range: CUMPLE_SHEET + '!' + CUMPLE_RANGE,
+    valueInputOption: 'USER_ENTERED',
+    insertDataOption: 'INSERT_ROWS',
+    requestBody: { values: [row] },
+  });
+  logger.info({ id, data }, 'Cumpleanos registrado');
+  return { id, nombre: data.nombre, dia: data.dia, mes: data.mes, anio: data.anio || null, notas: data.notas || '' };
+}
+
+export async function getCumpleanos() {
+  const rows = await getAllCumpleanosRaw();
+  return rows.map((r, i) => rowToCumpleanos(r, i));
+}
+
+export async function findCumpleanos(nombreBusqueda) {
+  const rows   = await getAllCumpleanosRaw();
+  const needle = (nombreBusqueda || '').toLowerCase();
+  for (let i = 0; i < rows.length; i++) {
+    const c = rowToCumpleanos(rows[i], i);
+    if (c.nombre.toLowerCase().includes(needle)) return c;
+  }
+  return null;
+}
+
+export async function editarCumpleanos(nombreBusqueda, cambios) {
+  const c = await findCumpleanos(nombreBusqueda);
+  if (!c) return null;
+  if (cambios.nombre != null) c.nombre = cambios.nombre;
+  if (cambios.dia    != null) c.dia    = cambios.dia;
+  if (cambios.mes    != null) c.mes    = cambios.mes;
+  if (cambios.anio   != null) c.anio   = cambios.anio;
+  if (cambios.notas  != null) c.notas  = cambios.notas;
+  await writeCumpleanosRow(c._rowIndex, c);
+  logger.info({ id: c.id, cambios }, 'Cumpleanos editado');
+  return c;
+}
+
+export async function eliminarCumpleanos(nombreBusqueda) {
+  const c = await findCumpleanos(nombreBusqueda);
+  if (!c) return null;
+  const sheets  = await getSheetsClient();
+  const meta    = await sheets.spreadsheets.get({ spreadsheetId: config.sheets.sheetId });
+  const sheet   = meta.data.sheets.find(s => s.properties.title === CUMPLE_SHEET);
+  const sheetId = sheet.properties.sheetId;
+  await sheets.spreadsheets.batchUpdate({
+    spreadsheetId: config.sheets.sheetId,
+    requestBody: {
+      requests: [{
+        deleteDimension: {
+          range: { sheetId, dimension: 'ROWS', startIndex: c._rowIndex - 1, endIndex: c._rowIndex },
+        },
+      }],
+    },
+  });
+  logger.info({ id: c.id }, 'Cumpleanos eliminado');
+  return c;
+}
+
 // ── Hoja Ayuda ────────────────────────────────────────────────────────────────
 // Columnas: ID | Fecha | Monto | De quien | Descripcion
 

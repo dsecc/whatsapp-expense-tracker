@@ -333,6 +333,51 @@ const TOOLS = [
     },
   },
   {
+    name: 'registrar_cumpleanos',
+    description: 'Registra el cumpleaños de una persona, con recordatorio automatico cada año (no hay que volver a registrarlo). Usar cuando el usuario diga: el cumpleaños de X es el..., anotá el cumple de X, agregá que X cumple años el.... El año de nacimiento es opcional — si el usuario no lo menciona, NO preguntar por él, se guarda sin año y listo.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        nombre: { type: 'string' },
+        dia:    { type: 'number', description: '1-31' },
+        mes:    { type: 'number', description: '1-12' },
+        anio:   { type: 'number', description: 'Año de nacimiento, opcional. Solo si el usuario lo menciona.' },
+        notas:  { type: 'string', description: 'Opcional: ideas de regalo u otra nota' },
+      },
+      required: ['nombre', 'dia', 'mes'],
+    },
+  },
+  {
+    name: 'editar_cumpleanos',
+    description: 'Modifica un cumpleaños ya registrado: agregar/corregir el año de nacimiento, cambiar la fecha, el nombre o las notas. Usar cuando el usuario diga: che X nació en el año Y, en realidad el cumple de X es el..., agregale/cambiale una nota al cumple de X.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        nombre_busqueda: { type: 'string', description: 'Nombre o parte del nombre para encontrarlo' },
+        nuevo_nombre:    { type: 'string' },
+        nuevo_dia:       { type: 'number' },
+        nuevo_mes:       { type: 'number' },
+        nuevo_anio:      { type: 'number', description: 'Año de nacimiento a agregar o corregir' },
+        nuevas_notas:    { type: 'string' },
+      },
+      required: ['nombre_busqueda'],
+    },
+  },
+  {
+    name: 'eliminar_cumpleanos',
+    description: 'Elimina el cumpleaños de una persona del registro. Usar cuando diga: borrá el cumple de X, ya no hace falta que me acuerdes el cumpleaños de X.',
+    input_schema: {
+      type: 'object',
+      properties: { nombre_busqueda: { type: 'string' } },
+      required: ['nombre_busqueda'],
+    },
+  },
+  {
+    name: 'ver_cumpleanos',
+    description: 'Lista los cumpleaños registrados, ordenados por proxima fecha. Usar cuando pregunte: qué cumpleaños tengo, cuándo cumple X, mis cumples, próximos cumpleaños.',
+    input_schema: { type: 'object', properties: {} },
+  },
+  {
     name: 'confirmar_accion',
     description: 'Usuario confirma accion pendiente: si/dale/va/ok/correcto/eso.',
     input_schema: { type: 'object', properties: {} },

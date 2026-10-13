@@ -31,6 +31,7 @@ import {
   appendArchivo, buscarArchivos, getArchivos, ensureArchivosHeaders,
   appendRecordatorio, getRecordatoriosPendientes, snoozeRecordatorio,
   eliminarRecordatorio, ensureRecordatoriosHeaders,
+  appendCumpleanos, getCumpleanos, findCumpleanos, editarCumpleanos, eliminarCumpleanos, ensureCumpleanosHeaders,
 } from '../sheets/client.js';
 import {
   setPendingAction, getPendingAction, clearPendingAction, hasPendingAction,
@@ -43,6 +44,7 @@ import { startSubscriptionScheduler, SNOOZE_HOURS, MAX_SNOOZE } from '../schedul
 import { startMonthlyScheduler, formatReporteMensual } from '../scheduler/monthly.js';
 import { startEventsScheduler } from '../scheduler/events.js';
 import { startRemindersScheduler } from '../scheduler/reminders.js';
+import { startBirthdaysScheduler, nowAR as nowARCumples, proximaOcurrencia } from '../scheduler/birthdays.js';
 import { transcribeAudio } from './transcribe.js';
 
 let sock = null;
@@ -608,6 +610,68 @@ async function executeTool(from, toolName, input, recentRows, isAudio = false) {
       return 'Recordatorio *' + rec.descripcion + '* eliminado.';
     }
 
+    // ── Cumpleaños ───────────────────────────────────────────────────────────
+    case 'registrar_cumpleanos': {
+      const result   = await appendCumpleanos({ nombre: input.nombre, dia: input.dia, mes: input.mes, anio: input.anio || null, notas: input.notas || '' });
+      const fechaStr = String(input.dia).padStart(2, '0') + '/' + String(input.mes).padStart(2, '0');
+      const anioStr  = result.anio ? ' (' + result.anio + ')' : '';
+      return '*[CUMPLEAÑOS REGISTRADO — #' + result.id + ']*\n\n' + result.nombre + anioStr + '\n📅 ' + fechaStr + '\n\nTe aviso un mes antes, una semana antes y el mismo día.';
+    }
+
+    case 'editar_cumpleanos': {
+      const c = await findCumpleanos(input.nombre_busqueda);
+      if (!c) return 'No encontré ningún cumpleaños que coincida con "' + input.nombre_busqueda + '".';
+
+      const cambios = {
+        nombre: input.nuevo_nombre ?? null,
+        dia:    input.nuevo_dia    ?? null,
+        mes:    input.nuevo_mes    ?? null,
+        anio:   input.nuevo_anio   ?? null,
+        notas:  input.nuevas_notas ?? null,
+      };
+      const hayCambios = Object.values(cambios).some(v => v != null);
+      if (!hayCambios) return 'Encontré *' + c.nombre + '* pero no entendí qué querés cambiar.';
+
+      const lineas = [];
+      if (cambios.nombre != null) lineas.push('Nombre: ' + c.nombre + ' → *' + cambios.nombre + '*');
+      if (cambios.dia    != null || cambios.mes != null) {
+        const dia = cambios.dia ?? c.dia, mes = cambios.mes ?? c.mes;
+        lineas.push('Fecha: ' + String(c.dia).padStart(2, '0') + '/' + String(c.mes).padStart(2, '0') + ' → *' + String(dia).padStart(2, '0') + '/' + String(mes).padStart(2, '0') + '*');
+      }
+      if (cambios.anio  != null) lineas.push('Año: ' + (c.anio || '(sin año)') + ' → *' + cambios.anio + '*');
+      if (cambios.notas != null) lineas.push('Notas: ' + (c.notas || '(sin notas)') + ' → *' + cambios.notas + '*');
+
+      setPendingAction(from, { tipo: 'editar_cumpleanos', nombreCumple: c.nombre, cambios });
+      return 'Encontré *' + c.nombre + '*. Cambios a aplicar:\n\n' + lineas.join('\n') + '\n\n¿Confirmás?';
+    }
+
+    case 'eliminar_cumpleanos': {
+      const c = await findCumpleanos(input.nombre_busqueda);
+      if (!c) return 'No encontré ningún cumpleaños que coincida con "' + input.nombre_busqueda + '".';
+      setPendingAction(from, { tipo: 'eliminar_cumpleanos', nombreCumple: c.nombre });
+      return 'Vas a eliminar el cumpleaños de *' + c.nombre + '*. ¿Confirmás?';
+    }
+
+    case 'ver_cumpleanos': {
+      const cumples = await getCumpleanos();
+      if (cumples.length === 0) return 'No tenés cumpleaños registrados todavía.';
+
+      const ar = nowARCumples();
+      const conOcurrencia = cumples
+        .filter(c => c.dia && c.mes)
+        .map(c => ({ ...c, _ocurrencia: proximaOcurrencia(c.dia, c.mes, ar) }))
+        .sort((a, b) => a._ocurrencia - b._ocurrencia);
+
+      const lines = ['*Cumpleaños* 🎂', ''];
+      for (const c of conOcurrencia) {
+        const fechaStr = String(c.dia).padStart(2, '0') + '/' + String(c.mes).padStart(2, '0');
+        const edad     = c.anio ? ' (cumple ' + (c._ocurrencia.getFullYear() - c.anio) + ')' : '';
+        const notas    = c.notas ? ' — 📝 ' + c.notas : '';
+        lines.push('  #' + c.id + ' ' + c.nombre + ' — ' + fechaStr + edad + notas);
+      }
+      return lines.join('\n');
+    }
+
     // ── Archivos ─────────────────────────────────────────────────────────────
     case 'guardar_archivo': {
       const pending = getPendingMedia(from);
@@ -726,6 +790,20 @@ async function handleConfirmacion(from, intent, body) {
       return eliminado
         ? 'Eliminado. *' + eliminado.descripcion + '* (' + eliminado.fecha + ') borrado.'
         : 'No encontré el evento. Puede que ya haya sido eliminado.';
+
+    } else if (pending.tipo === 'editar_cumpleanos') {
+      const updated = await editarCumpleanos(pending.nombreCumple, pending.cambios);
+      clearPendingAction(from);
+      if (!updated) return 'No encontré el cumpleaños para editar. Puede que ya haya sido eliminado.';
+      const fechaStr = String(updated.dia).padStart(2, '0') + '/' + String(updated.mes).padStart(2, '0');
+      return 'Listo. *' + updated.nombre + '* · 📅 ' + fechaStr + (updated.anio ? ' (' + updated.anio + ')' : '');
+
+    } else if (pending.tipo === 'eliminar_cumpleanos') {
+      const eliminado = await eliminarCumpleanos(pending.nombreCumple);
+      clearPendingAction(from);
+      return eliminado
+        ? 'Eliminado. Cumpleaños de *' + eliminado.nombre + '* borrado.'
+        : 'No encontré el cumpleaños. Puede que ya haya sido eliminado.';
 
     } else if (pending.tipo === 'borrar_todas_deudas') {
       const count = await borrarTodasDeudas();
@@ -949,6 +1027,7 @@ export async function startWhatsAppClient() {
   await ensureEventosHeaders();
   await ensureArchivosHeaders();
   await ensureRecordatoriosHeaders();
+  await ensureCumpleanosHeaders();
 
   const { state, saveCreds } = await useMultiFileAuthState(config.whatsapp.sessionDir);
 
@@ -1010,6 +1089,7 @@ export async function startWhatsAppClient() {
       startMonthlyScheduler(getSock, config.whatsapp.summaryJid);
       startEventsScheduler(getSock, config.whatsapp.summaryJid);
       startRemindersScheduler(getSock, config.whatsapp.summaryJid);
+      startBirthdaysScheduler(getSock, config.whatsapp.summaryJid);
     }
   });
 

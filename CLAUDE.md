@@ -1,6 +1,6 @@
 # WhatsApp Expense Tracker — Adam Smith
 
-Bot de WhatsApp personal para registro de gastos, deudas, suscripciones, eventos y recordatorios. Soporta mensajes de texto y audios (transcripción via Whisper). Corre en Docker sobre un VPS propio.
+Bot de WhatsApp personal para registro de gastos, deudas, suscripciones, eventos, recordatorios y cumpleaños. Soporta mensajes de texto y audios (transcripción via Whisper). Corre en Docker sobre un VPS propio.
 
 ## Stack
 
@@ -8,14 +8,17 @@ Bot de WhatsApp personal para registro de gastos, deudas, suscripciones, eventos
 - **Baileys 7.0.0-rc13** — cliente WhatsApp multi-dispositivo
 - **Claude claude-sonnet-4-6** — arquitectura tool_use + prompt caching + múltiples tools por mensaje
 - **OpenAI Whisper** — transcripción de audios (modelo `whisper-1`, idioma `es`)
-- **Google Sheets** — base de datos (hojas: Gastos, Ayuda, Deudas, Suscripciones, Eventos, Recordatorios)
+- **Google Sheets** — base de datos (hojas: Gastos, Ayuda, Deudas, Suscripciones, Eventos, Recordatorios, Cumpleanos)
 - **Docker** — imagen `expense-tracker-app:3.0`, volumen persistente `app_data`
 
-## Versión actual: 3.0.4
+## Versión actual: 3.1.1
 
-**Fixes incluidos en 3.0.4:**
+**Fixes incluidos en 3.1.1:**
 - Avisos previos de eventos y suscripciones (3 días y 1 día antes) ahora salen a partir de las 21:00 AR (`HORA_AVISO_PREVIO`) — antes no tenían restricción horaria y salían en el primer chequeo después de medianoche (~00:xx), cuando el usuario ya no los ve hasta el día siguiente
 - Aviso del mismo día de suscripciones ahora sale a partir de las 8:00 AR (antes también salía a la madrugada). El de eventos ya respetaba `avisoHora` (default 8:00)
+
+**Nuevo en 3.1.0:**
+- Módulo de Cumpleaños: registro con recurrencia anual (no hace falta volver a cargarlo cada año), año de nacimiento opcional (se pregunta/agrega de forma conversacional, nunca de entrada), 3 avisos automáticos por cumpleaños (1 mes antes, 1 semana antes con fecha relativa tipo "el lunes que viene", y el mismo día a las 00:01). Ver sección [Cumpleaños](#cumpleaños).
 
 **Fixes incluidos en 3.0.3:**
 - `startWhatsAppClient` ahora usa `fetchLatestWaWebVersion()` en vez de `fetchLatestBaileysVersion()` — esta scrapea `web.whatsapp.com/sw.js` para obtener la version real que WhatsApp esta sirviendo, en vez de leer el repo de Baileys en GitHub (que puede estar atrasado y además falla en silencio si no hay red, sin arreglar el loop de `statusCode 405`)
@@ -44,6 +47,7 @@ src/
     subscriptions.js        — recordatorios suscripciones (cada hora)
     events.js               — recordatorios eventos (cada hora)
     reminders.js            — recordatorios libres (cada 15 min, soporta snooze)
+    birthdays.js            — recordatorios de cumpleaños (cada 15 min, recurrencia anual)
   state/conversation.js     — historial, pending actions, stack interactuadas
   config/index.js           — variables de entorno
   utils/logger.js           — pino logger
@@ -62,7 +66,7 @@ WHATSAPP_AUTH_METHOD=qr
 TZ=America/Argentina/Buenos_Aires
 ```
 
-## Tools disponibles (31)
+## Tools disponibles (35)
 
 | Módulo | Tools |
 |--------|-------|
@@ -72,6 +76,7 @@ TZ=America/Argentina/Buenos_Aires
 | Suscripciones | registrar_suscripcion, cancelar_suscripcion, editar_suscripcion, eliminar_suscripcion, ver_suscripciones, snooze_suscripcion |
 | Eventos | registrar_evento, ver_eventos, editar_evento, eliminar_evento |
 | Recordatorios | registrar_recordatorio, ver_recordatorios, snooze_recordatorio, eliminar_recordatorio |
+| Cumpleaños | registrar_cumpleanos, ver_cumpleanos, editar_cumpleanos, eliminar_cumpleanos |
 | Reportes | ver_reporte_mensual |
 | Sistema | confirmar_accion, rechazar_accion |
 
@@ -105,6 +110,15 @@ TZ=America/Argentina/Buenos_Aires
 - Se auto-completan al avisar (desaparecen de la lista)
 - Estado persistente: `/app/data/recordatorios_notif_state.json`
 
+## Cumpleaños
+
+- Recurrencia anual: se registra una sola vez (día + mes), no hay que volver a cargarlo cada año
+- El año de nacimiento es opcional. Si no se sabe al registrar, no se pregunta — se agrega después de forma conversacional (ej. "Fede nació en el 98" → `editar_cumpleanos`) y a partir de ahí el bot calcula y avisa la edad
+- 3 avisos automáticos por cumpleaños: 1 mes antes, 1 semana antes (con la fecha relativa, ej. "el lunes que viene") y el mismo día a las 00:01
+- 29 de febrero: en años no bisiestos el aviso se corre al 1 de marzo
+- Eliminar/editar requieren confirmación (igual que Suscripciones/Eventos); registrar es directo
+- Estado persistente: `/app/data/cumpleanos_notif_state.json`
+
 ## Categorías de gastos
 
 | Categoría | Qué incluye |
@@ -126,7 +140,7 @@ TZ=America/Argentina/Buenos_Aires
 ```bash
 # Primera vez o rebuild completo
 cd /opt/expense-tracker
-tar -xzf whatsapp-expense-tracker-v3.0.4.tar.gz
+tar -xzf whatsapp-expense-tracker-v3.1.1.tar.gz
 docker-compose build --no-cache
 docker-compose up -d
 docker logs expense-tracker-app -f   # escanear QR si es primera vez
@@ -149,3 +163,4 @@ Si aparece el error "esperando este mensaje" en WhatsApp: es una sesión Signal 
 - `/app/data/notif_state.json` — suscripciones ya notificadas
 - `/app/data/eventos_notif_state.json` — eventos ya notificados
 - `/app/data/recordatorios_notif_state.json` — recordatorios ya notificados
+- `/app/data/cumpleanos_notif_state.json` — avisos de cumpleaños ya notificados
