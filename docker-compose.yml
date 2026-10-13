@@ -12,6 +12,9 @@ services:
       - .env
     environment:
       - TZ=America/Argentina/Buenos_Aires
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
     volumes:
       - app_data:/app/data
       - wa_session:/app/data/wa-session
